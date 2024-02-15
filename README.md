@@ -1,6 +1,6 @@
 # tf-gcp-infra
 
-# Installing Terraform
+# Installing Terraform on the device
 1. Download the Terraform binary suitable for your operating system from Terraform's official website.
 2. Extract the downloaded archive to a directory included th system env variables.
 
