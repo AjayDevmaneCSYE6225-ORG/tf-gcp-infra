@@ -20,15 +20,15 @@ variable "dbSubnetCidr" {
 
 variable "num_vpcs" {
   description = "Number of VPCs to create"
-  default="2"
+  default="1"
 }
 
 variable "num_webapp_subnets_per_vpc" {
   description = "Number of subnets to create per VPC"
-  default="2"
+  default="1"
 }
 
 variable "num_db_subnets_per_vpc" {
   description = "Number of subnets to create per VPC"
-  default="2"
+  default="1"
 }
