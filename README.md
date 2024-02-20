@@ -6,6 +6,7 @@
 
 
 # Running Terraform
+steps for running terraform
 1. terraform init
 2. terraform plan
 3. terraform apply
