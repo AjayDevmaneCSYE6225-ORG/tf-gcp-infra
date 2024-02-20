@@ -34,7 +34,7 @@
 #   tags                  = ["webapp"]
 # }
 
-provider "google" {
+provider "google" 
   credentials = file(var.credentialsFile)
   project     = var.projectId
   region      = var.region
