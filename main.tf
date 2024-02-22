@@ -77,3 +77,54 @@ resource "google_compute_route" "webapp_route" {
   priority              = 1000
   tags                  = ["webapp"]
 }
+
+resource "google_compute_instance" "default" {
+  name         = "csye-instance"
+  machine_type = "n2-standard-2"
+  zone         = "us-central1-a"
+
+  boot_disk {
+    initialize_params {
+      image = "projects/debian-cloud/global/images/debian-12-bookworm-v20240213"
+      size  = 100
+      type  = "pd-balanced"
+    }
+  }
+
+  network_interface {
+    network = "default"
+  }
+
+  service_account {
+
+    email  = "packer-buildmi-sa@csye6225-414121.iam.gserviceaccount.com"
+    scopes = ["cloud-platform"]
+  }
+}
+
+resource "google_compute_firewall" "allowHttp" {
+  count   = var.num_vpcs
+  name    = "allow-http-${count.index}"
+  network = google_compute_network.vpc[count.index].name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["${var.port}"] 
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["webapp"]
+}
+
+resource "google_compute_firewall" "denySsh" {
+  count   = var.num_vpcs
+  name    = "deny-ssh-${count.index}"
+  network = google_compute_network.vpc[count.index].name
+
+  deny {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
