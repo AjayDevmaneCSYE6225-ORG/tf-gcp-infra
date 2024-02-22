@@ -32,3 +32,8 @@ variable "num_db_subnets_per_vpc" {
   description = "Number of subnets to create per VPC"
   default="1"
 }
+
+variable "port" {
+  description = "Port Number"
+  default="3000"
+}
