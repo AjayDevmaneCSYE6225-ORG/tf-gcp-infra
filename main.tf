@@ -117,12 +117,12 @@ resource "google_compute_firewall" "firewallsRules" {
   network = google_compute_network.vpc.self_link
   allow {
     protocol = "tcp"
-    ports    = [var.port, "22"]
+    ports    = [var.port]
   }
 
   priority  = 1000
   direction = "INGRESS"
 
-  source_ranges = [var.dest_range, "35.235.240.0/20"]
+  source_ranges = [var.dest_range]
   target_tags   = ["webapp"]
 }
