@@ -111,18 +111,32 @@ resource "google_compute_instance" "default" {
 
 }
 
-resource "google_compute_firewall" "firewallsRules" {
-
-  name    = "firewall-rule"
+resource "google_compute_firewall" "firewall_allow_rule" {
+  name    = "firewall-allow-rule"
   network = google_compute_network.vpc.self_link
+
   allow {
     protocol = "tcp"
     ports    = [var.port]
   }
 
-  priority  = 1000
-  direction = "INGRESS"
+  priority      = 1000
+  direction     = "INGRESS"
+  source_ranges = [var.dest_range]
+  target_tags   = ["webapp"]
+}
 
+resource "google_compute_firewall" "firewall_deny_rule" {
+  name    = "firewall-deny-rule"
+  network = google_compute_network.vpc.self_link
+
+  deny {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  priority      = 1000
+  direction     = "INGRESS"
   source_ranges = [var.dest_range]
   target_tags   = ["webapp"]
 }
