@@ -67,3 +67,7 @@ variable "ip_version" {
 variable "machine_type" {
   default = "n2-standard-2"
 }
+
+variable "root_password" {
+  default = "Hello@123"
+}
