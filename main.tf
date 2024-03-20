@@ -1,7 +1,7 @@
 provider "google" {
-  credentials = file(var.credentialsFile)
-  project     = var.projectId
-  region      = var.region
+  #  credentials = file(var.credentialsFile)
+  project = var.projectId
+  region  = var.region
 }
 # creating vpc
 resource "google_compute_network" "vpc" {
@@ -47,7 +47,7 @@ resource "google_compute_firewall" "firewall_allow_rule" {
 
   allow {
     protocol = "tcp"
-    ports    = [var.port]
+    ports    = [var.port, 22]
   }
 
   priority      = 1000
@@ -57,21 +57,21 @@ resource "google_compute_firewall" "firewall_allow_rule" {
 }
 
 
-# creating firewall
-resource "google_compute_firewall" "firewall_deny_rule" {
-  name    = "firewall-deny-rule"
-  network = google_compute_network.vpc.self_link
-
-  deny {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
-
-  priority      = 1000
-  direction     = "INGRESS"
-  source_ranges = [var.dest_range]
-  target_tags   = ["webapp"]
-}
+## creating firewall
+#resource "google_compute_firewall" "firewall_deny_rule" {
+#  name    = "firewall-deny-rule"
+#  network = google_compute_network.vpc.self_link
+#
+#  deny {
+#    protocol = "tcp"
+#    ports    = ["22"]
+#  }
+#
+#  priority      = 1000
+#  direction     = "INGRESS"
+#  source_ranges = [var.dest_range]
+#  target_tags   = ["webapp"]
+#}
 
 #creating global ip address
 #resource "google_compute_global_address" "default" {
@@ -157,11 +157,47 @@ resource "google_sql_user" "user" {
   password = random_password.password.result
 }
 
-# creating vpc instance
+resource "google_dns_record_set" "a_record" {
+  name         = "ajaydevmane.me."
+  managed_zone = "ajay-devmane-zone"
+  type         = "A"
+  ttl          = 60
+  rrdatas      = [google_compute_instance.default.network_interface[0].access_config[0].nat_ip]
+}
+
+#creating service account
+resource "google_service_account" "service_account_iam" {
+  account_id   = "service-account-iam-id"
+  display_name = "Service Account with IAM role"
+}
+
+#setting iam role to service account
+resource "google_project_iam_binding" "project" {
+  project = var.projectId
+
+  role = "roles/logging.admin"
+  members = [
+    "serviceAccount:${google_service_account.service_account_iam.email}"
+  ]
+}
+
+resource "google_project_iam_binding" "project_monitoring" {
+  project = var.projectId
+
+  role = "roles/monitoring.metricWriter"
+  members = [
+    "serviceAccount:${google_service_account.service_account_iam.email}"
+  ]
+}
+
+# creating vm instance
 resource "google_compute_instance" "default" {
   name         = "csye-instance"
   machine_type = var.machine_type
   zone         = var.zone
+
+  #  allow_stopping_for_update = true
+  depends_on = [google_project_iam_binding.project_monitoring]
 
   boot_disk {
     initialize_params {
@@ -180,7 +216,7 @@ resource "google_compute_instance" "default" {
   }
 
   service_account {
-    email  = "packer-buildmi-sa@csye6225-414121.iam.gserviceaccount.com"
+    email  = "service-account-iam-id@csye6225-414121.iam.gserviceaccount.com"
     scopes = ["cloud-platform"]
   }
 
