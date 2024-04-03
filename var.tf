@@ -71,3 +71,30 @@ variable "machine_type" {
 variable "root_password" {
   default = "Hello@123"
 }
+
+variable "name_cloud_function" {
+  default = "my_cloud_function"
+}
+
+variable "MAILGUN_API_KEY" {
+  default = "8122f07832c4275014ebfb69e57188e8-f68a26c9-60050ad1"
+}
+
+variable "entry_point" {
+  default = "helloPubSub"
+}
+
+variable "cloud_function_runtime" {
+  default = "nodejs18"
+}
+variable "cloud_function_available_memory_mb" {
+  default = "256M"
+}
+
+variable "cloud_function_timeout" {
+  default = 540
+}
+
+variable "WEBAPP_URL" {
+  default = "http://localhost:3000/v1/user/verifyUser"
+}
