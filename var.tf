@@ -98,3 +98,7 @@ variable "cloud_function_timeout" {
 variable "WEBAPP_URL" {
   default = "http://localhost:3000/v1/user/verifyUser"
 }
+
+variable "SERVICE_AC_DEFAULT" {
+  default = "service-832118508210@compute-system.iam.gserviceaccount.com"
+}

@@ -105,8 +105,12 @@ resource "google_sql_database_instance" "mysql_db_instance" {
       enabled            = true
       binary_log_enabled = true
     }
+
   }
   deletion_protection = false
+
+  encryption_key_name = google_kms_crypto_key.sql_key_3.id
+
 }
 
 #creating database
@@ -139,7 +143,7 @@ resource "google_sql_user" "user" {
 
 #creating service account
 resource "google_service_account" "service_account_iam" {
-  account_id   = "service-account-iam-id"
+  account_id   = "service-account-iam-id1"
   display_name = "Service Account with IAM role"
 }
 
@@ -171,7 +175,7 @@ resource "google_project_iam_binding" "service_account_pub" {
 }
 
 resource "google_service_account" "cloudfunction_service_acount" {
-  account_id   = "cloudfunction-account-id"
+  account_id   = "cloudfunction-account-id1"
   display_name = "cloudfunction-service-account-dispName"
   depends_on   = [google_pubsub_topic.verify_email]
 }
@@ -198,6 +202,56 @@ resource "google_project_iam_binding" "cf_service_account_vpc_connector" {
   project = var.projectId
   role    = "roles/vpcaccess.user"
   members = ["serviceAccount:${google_service_account.cloudfunction_service_acount.email}"]
+}
+
+
+data "google_storage_project_service_account" "key_service_account" {
+  # account_id   = "key-service-account"
+  # display_name = "keys service account"
+  # project      = var.projectId
+}
+
+
+resource "google_kms_crypto_key_iam_binding" "crypto_key_bucket" {
+  crypto_key_id = google_kms_crypto_key.bucket_key_3.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = ["serviceAccount:${data.google_storage_project_service_account.key_service_account.email_address}"]
+}
+
+resource "google_kms_crypto_key_iam_binding" "crypto_key_object" {
+  crypto_key_id = google_kms_crypto_key.bucket_object_key_3.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = ["serviceAccount:${data.google_storage_project_service_account.key_service_account.email_address}"]
+}
+
+resource "google_kms_crypto_key_iam_binding" "crypto_key_vm" {
+  crypto_key_id = google_kms_crypto_key.vm_key_3.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = ["serviceAccount:${var.SERVICE_AC_DEFAULT}"]
+}
+
+resource "google_storage_bucket" "storage_bucket" {
+  name                        = "cloud_function-bucket1"
+  location                    = var.region
+  storage_class               = "STANDARD"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+  encryption {
+    default_kms_key_name = google_kms_crypto_key.bucket_key_3.id
+  }
+
+  depends_on = [google_kms_crypto_key_iam_binding.crypto_key_bucket]
+
+}
+
+resource "google_storage_bucket_object" "storage_bucket_object" {
+  name         = "FORK_serverless.zip"
+  bucket       = google_storage_bucket.storage_bucket.name
+  source       = "./FORK_serverless.zip"
+  kms_key_name = google_kms_crypto_key.bucket_object_key_3.id
 }
 
 # creating vm instance
@@ -264,8 +318,11 @@ resource "google_compute_region_instance_template" "regional_template" {
 
   disk {
     source_image = "projects/csye6225-414121/global/images/my-final-custom-image"
-    disk_size_gb = 100
+    disk_size_gb = 20
     disk_type    = "pd-balanced"
+    disk_encryption_key {
+      kms_key_self_link = google_kms_crypto_key.vm_key_3.id
+    }
   }
 
   lifecycle {
@@ -276,7 +333,7 @@ resource "google_compute_region_instance_template" "regional_template" {
     network    = google_compute_network.vpc.self_link
     subnetwork = google_compute_subnetwork.webapp_subnet.self_link
     access_config {
-      // Leave this blank for ephemeral IP
+      network_tier = "PREMIUM"
     }
   }
 
@@ -337,8 +394,8 @@ resource "google_cloudfunctions2_function" "verify_email" {
     entry_point = var.entry_point
     source {
       storage_source {
-        bucket = "cloud_function-bucket"
-        object = "FORK_serverless.zip"
+        bucket = google_storage_bucket.storage_bucket.name
+        object = google_storage_bucket_object.storage_bucket_object.name
       }
     }
   }
@@ -467,7 +524,7 @@ module "gce-lb-http" {
   source      = "terraform-google-modules/lb-http/google"
   version     = "~> 10.0"
   project     = var.projectId
-  name        = "group-http-lb"
+  name        = "group-http-lb1"
   target_tags = ["webapp"]
 
   ssl                             = true
@@ -512,4 +569,69 @@ resource "google_dns_record_set" "a_record" {
   type         = "A"
   ttl          = 60
   rrdatas      = [module.gce-lb-http.external_ip]
+}
+
+
+//creating key ring
+resource "google_kms_key_ring" "my_key_ring_3" {
+  name     = "my-key-ring-101"
+  location = var.region
+
+  project = var.projectId
+}
+
+resource "google_kms_crypto_key" "vm_key_3" {
+  name            = "vm-key-101"
+  key_ring        = google_kms_key_ring.my_key_ring_3.id
+  rotation_period = "2592000s"
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "google_kms_crypto_key" "sql_key_3" {
+  name            = "sql-key-101"
+  key_ring        = google_kms_key_ring.my_key_ring_3.id
+  rotation_period = "2592000s"
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "google_kms_crypto_key" "bucket_key_3" {
+  name            = "cloud_function-bucket"
+  key_ring        = google_kms_key_ring.my_key_ring_3.id
+  rotation_period = "2592000s"
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "google_kms_crypto_key" "bucket_object_key_3" {
+  name            = "storage-object-key-101"
+  key_ring        = google_kms_key_ring.my_key_ring_3.id
+  rotation_period = "2592000s"
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "google_project_service_identity" "gcp_sa_cloud_sql" {
+  project  = var.projectId
+  provider = google-beta
+  service  = "sqladmin.googleapis.com"
+}
+
+resource "google_kms_crypto_key_iam_binding" "crypto_key_sql" {
+  provider      = google-beta
+  crypto_key_id = google_kms_crypto_key.sql_key_3.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = [
+    "serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}",
+  ]
 }
